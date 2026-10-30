@@ -65,6 +65,10 @@ def bericht(args):
             if (von and t < von) or (bis and t >= bis):
                 continue
             daten.append((t, float(r["kmh"]), r["richtung"]))
+    # Unplausible Werte (z. B. Fehlzuordnungen bei Dunkelheit) nachträglich verwerfen
+    plaus = cfg["messung"].get("max_kmh", 1e9)
+    verworfen = [d for d in daten if d[1] > plaus]
+    daten = [d for d in daten if d[1] <= plaus]
     if not daten:
         raise SystemExit("Keine Messungen im gewählten Zeitraum.")
 
@@ -86,6 +90,10 @@ def bericht(args):
     print(f"Fahrzeuge: {gesamt['n']}  ({schnitt})")
     print(f"Über {limit:.0f} km/h:            {gesamt['ueber_limit']:5d}  = {gesamt['p_limit']:.1f} %")
     print(f"Zu schnell (> {grenze:.0f} km/h):    {gesamt['zu_schnell']:5d}  = {gesamt['p_zu']:.1f} %")
+    if verworfen:
+        stunden_v = Counter(f"{d[0]:%H}" for d in verworfen)
+        print(f"Verworfen (> {plaus:.0f} km/h, unplausibel): {len(verworfen)}  –  nach Stunde: "
+              + ", ".join(f"{h} Uhr: {n}" for h, n in sorted(stunden_v.items())))
     print(f"V50 {gesamt['v50']:.1f}  |  V85 {gesamt['v85']:.1f}  |  Vmax {gesamt['vmax']:.1f} km/h")
 
     # --- HTML-Bericht -----------------------------------------------------------------
@@ -149,7 +157,8 @@ td,th{{padding:7px 8px;border-bottom:1px solid var(--lin);text-align:right}} td:
 <h2>Tagesverlauf <span class="mut">(Anzahl · Anteil zu schnell, rot = zu schnell)</span></h2>{stunden}
 <div class="note">V85 = Geschwindigkeit, die 85 % der Fahrzeuge nicht überschreiten – die übliche Kennzahl
 in der Verkehrsplanung. Eigene, nicht geeichte Messung mit Videoanalyse; Werte sind Richtwerte.
-Gezählt werden nur Fahrzeuge, die beide Messlinien passieren.</div>
+Gezählt werden nur Fahrzeuge, die beide Messlinien passieren.
+{f"{len(verworfen)} unplausible Messungen über {plaus:.0f} km/h wurden verworfen." if verworfen else ""}</div>
 </body></html>"""
     pfad = os.path.join(ordner, "bericht.html")
     with open(pfad, "w", encoding="utf-8") as f:
