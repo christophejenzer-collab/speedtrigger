@@ -32,3 +32,4 @@ ordner     = "messungen"  # CSV-Log + Tapo-Schnappschuss pro Auslösung
 [auswertung]
 limit_kmh    = 30.0       # signalisierte Höchstgeschwindigkeit
 toleranz_kmh = 3.0        # Messunsicherheit: "zu schnell" erst ab limit + toleranz
+# ab         = "2026-10-30 16:45"   # optional: nur Messungen ab diesem Zeitpunkt auswerten (z. B. nach Kalibrierung)

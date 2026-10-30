@@ -2,12 +2,17 @@
 
 python auswertung.py                                   # ganze Messung
 python auswertung.py --von "2026-11-02" --bis "2026-11-09"
+python auswertung.py --veroeffentlichen               # Bericht nach docs/ kopieren und auf GitHub pushen
+python auswertung.py --veroeffentlichen --alle 60     # Live-Modus: jede Stunde aktualisieren
 Ergebnis: Zusammenfassung in der Konsole + messungen/bericht.html
 """
 import argparse
 import csv
 import html
 import os
+import shutil
+import subprocess
+import time
 import tomllib
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -32,20 +37,25 @@ def kennzahlen(werte, limit, grenze):
                 v50=perzentil(werte, 50), v85=perzentil(werte, 85), vmax=max(werte))
 
 
-def main():
+def argumente():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="config.local.toml" if os.path.exists("config.local.toml") else "config.toml")
-    ap.add_argument("--von", help="z. B. 2026-11-02 oder '2026-11-02 06:00'")
+    ap.add_argument("--von", help="z. B. 2026-11-02 oder '2026-11-02 06:00' (Standard: [auswertung] ab)")
     ap.add_argument("--bis", help="exklusiv, z. B. 2026-11-09")
-    args = ap.parse_args()
+    ap.add_argument("--veroeffentlichen", action="store_true", help="Bericht nach docs/ kopieren und pushen")
+    ap.add_argument("--alle", type=int, metavar="MIN", help="Live-Modus: alle MIN Minuten wiederholen")
+    return ap.parse_args()
 
+
+def bericht(args):
     with open(args.config, "rb") as f:
         cfg = tomllib.load(f)
     limit = cfg["auswertung"]["limit_kmh"]
     grenze = limit + cfg["auswertung"]["toleranz_kmh"]
     ordner = cfg["ausgabe"]["ordner"]
 
-    von = datetime.fromisoformat(args.von) if args.von else None
+    ab = args.von or cfg["auswertung"].get("ab")  # Start der gültigen Messung (z. B. nach Kalibrierung)
+    von = datetime.fromisoformat(ab) if ab else None
     bis = datetime.fromisoformat(args.bis) if args.bis else None
 
     daten = []
@@ -108,7 +118,7 @@ def main():
     tabelle = zeile("Total", gesamt) + "".join(zeile(namen.get(r, r), k) for r, k in pro_richtung.items())
 
     bericht = f"""<!doctype html><html lang="de"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Verkehrszählung</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="600"><title>Verkehrszählung</title>
 <style>
 :root{{--bg:#fff;--fg:#1d1d1f;--mut:#6e6e73;--lin:#e5e5ea;--ok:#5b8def;--grenz:#f2b84b;--zu:#e5484d}}
 @media (prefers-color-scheme:dark){{:root{{--bg:#151517;--fg:#f2f2f7;--mut:#a1a1a6;--lin:#2c2c2e}}}}
@@ -126,7 +136,7 @@ td,th{{padding:7px 8px;border-bottom:1px solid var(--lin);text-align:right}} td:
 .note{{font-size:13px;color:var(--mut);margin-top:32px;border-top:1px solid var(--lin);padding-top:12px}}
 </style></head><body>
 <h1>Verkehrszählung – Geschwindigkeit</h1>
-<div class="mut">{t0:%d.%m.%Y %H:%M} – {t1:%d.%m.%Y %H:%M} · signalisiert {limit:.0f} km/h · Messtoleranz {grenze - limit:.0f} km/h</div>
+<div class="mut">{t0:%d.%m.%Y %H:%M} – {t1:%d.%m.%Y %H:%M} · signalisiert {limit:.0f} km/h · Messtoleranz {grenze - limit:.0f} km/h<br>Stand: {datetime.now():%d.%m.%Y %H:%M}</div>
 <div class="kpi">
 <div><span class="mut">Fahrzeuge</span><b>{gesamt['n']}</b><span class="mut">{schnitt}</span></div>
 <div class="rot"><span class="mut">Zu schnell (&gt; {grenze:.0f})</span><b>{gesamt['p_zu']:.1f} %</b><span class="mut">{gesamt['zu_schnell']} Fahrzeuge</span></div>
@@ -145,6 +155,45 @@ Gezählt werden nur Fahrzeuge, die beide Messlinien passieren.</div>
     with open(pfad, "w", encoding="utf-8") as f:
         f.write(bericht)
     print(f"Bericht: {pfad}")
+    return pfad
+
+
+def git(*befehl):
+    r = subprocess.run(["git", *befehl], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout).strip())
+    return r.stdout
+
+
+def veroeffentlichen(pfad):
+    """Bericht nach docs/bericht.html kopieren und nur diese Datei committen und pushen."""
+    ziel = os.path.join("docs", "bericht.html")
+    shutil.copyfile(pfad, ziel)
+    git("add", ziel)
+    if not git("status", "--porcelain", "--", ziel).strip():
+        print("Webseite: keine Änderung")
+        return
+    git("commit", "-m", f"Live-Bericht {datetime.now():%d.%m.%Y %H:%M}", "--", ziel)
+    git("pull", "--rebase", "--autostash")
+    git("push")
+    print("Webseite: aktualisiert -> https://christophejenzer-collab.github.io/speedtrigger/bericht.html")
+
+
+def main():
+    args = argumente()
+    while True:
+        try:
+            pfad = bericht(args)
+            if args.veroeffentlichen:
+                veroeffentlichen(pfad)
+        except (RuntimeError, SystemExit) as e:
+            if not args.alle:
+                raise
+            print(f"Fehler, neuer Versuch beim nächsten Durchlauf: {e}")
+        if not args.alle:
+            break
+        print(f"Nächste Aktualisierung in {args.alle} min (Ctrl+C beendet)")
+        time.sleep(args.alle * 60)
 
 
 if __name__ == "__main__":
