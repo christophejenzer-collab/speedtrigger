@@ -70,8 +70,10 @@ def main():
     tage = max((t1 - t0).total_seconds() / 86400, 1 / 24)
 
     # --- Konsole ----------------------------------------------------------------------
-    print(f"Zeitraum: {t0:%d.%m.%Y %H:%M} – {t1:%d.%m.%Y %H:%M}  ({tage:.1f} Tage)")
-    print(f"Fahrzeuge: {gesamt['n']}  (Ø {gesamt['n'] / tage:.0f} pro Tag)")
+    dauer = f"{tage:.1f} Tage" if tage >= 1 else f"{tage * 24:.1f} Stunden"
+    schnitt = f"Ø {gesamt['n'] / tage:.0f} pro Tag" if tage >= 1 else "Tagesschnitt erst ab 1 Tag Messdauer"
+    print(f"Zeitraum: {t0:%d.%m.%Y %H:%M} – {t1:%d.%m.%Y %H:%M}  ({dauer})")
+    print(f"Fahrzeuge: {gesamt['n']}  ({schnitt})")
     print(f"Über {limit:.0f} km/h:            {gesamt['ueber_limit']:5d}  = {gesamt['p_limit']:.1f} %")
     print(f"Zu schnell (> {grenze:.0f} km/h):    {gesamt['zu_schnell']:5d}  = {gesamt['p_zu']:.1f} %")
     print(f"V50 {gesamt['v50']:.1f}  |  V85 {gesamt['v85']:.1f}  |  Vmax {gesamt['vmax']:.1f} km/h")
@@ -126,7 +128,7 @@ td,th{{padding:7px 8px;border-bottom:1px solid var(--lin);text-align:right}} td:
 <h1>Verkehrszählung – Geschwindigkeit</h1>
 <div class="mut">{t0:%d.%m.%Y %H:%M} – {t1:%d.%m.%Y %H:%M} · signalisiert {limit:.0f} km/h · Messtoleranz {grenze - limit:.0f} km/h</div>
 <div class="kpi">
-<div><span class="mut">Fahrzeuge</span><b>{gesamt['n']}</b><span class="mut">Ø {gesamt['n'] / tage:.0f} pro Tag</span></div>
+<div><span class="mut">Fahrzeuge</span><b>{gesamt['n']}</b><span class="mut">{schnitt}</span></div>
 <div class="rot"><span class="mut">Zu schnell (&gt; {grenze:.0f})</span><b>{gesamt['p_zu']:.1f} %</b><span class="mut">{gesamt['zu_schnell']} Fahrzeuge</span></div>
 <div><span class="mut">Über {limit:.0f} km/h</span><b>{gesamt['p_limit']:.1f} %</b><span class="mut">ohne Toleranz</span></div>
 <div><span class="mut">V85</span><b>{gesamt['v85']:.1f}</b><span class="mut">km/h</span></div>
