@@ -67,7 +67,7 @@ def main():
         pro_stunde[t.hour].append(v)
     klassen = Counter(min(int(v // 5) * 5, 70) for v in alle)
     t0, t1 = min(d[0] for d in daten), max(d[0] for d in daten)
-    tage = max((t1 - t0).total_seconds() / 86400, 1 / 24)
+    tage = max((t1 - t0).total_seconds() / 86400, 1 / 1440)
 
     # --- Konsole ----------------------------------------------------------------------
     dauer = f"{tage:.1f} Tage" if tage >= 1 else f"{tage * 24:.1f} Stunden"
