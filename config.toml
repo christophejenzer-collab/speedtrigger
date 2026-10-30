@@ -1,0 +1,33 @@
+# SpeedTrigger – Konfiguration
+# Koordinaten der Messlinien sind normalisiert (0.0–1.0), damit stream1/stream2 austauschbar sind.
+# Setzen am einfachsten mit:  python kalibrieren.py
+
+[tapo]
+host   = "192.168.1.50"   # statische IP deiner Tapo
+port   = 554
+stream = "stream2"        # stream2 = SD, deutlich weniger Verzögerung als stream1 (HD)
+# Zugangsdaten NICHT hier, sondern als Umgebungsvariablen TAPO_USER / TAPO_PASS
+
+[messung]
+linie_a      = [[0.30, 0.20], [0.30, 0.90]]
+linie_b      = [[0.70, 0.20], [0.70, 0.90]]
+distanz_m    = 15.0       # reale Distanz A–B auf der Strasse (vor Ort ausmessen!), 15–20 m ideal
+schwelle_kmh = 33.0       # 30 km/h + ~3 km/h Messtoleranz gegen Fehlauslösungen
+richtung     = "beide"    # "a_nach_b", "b_nach_a" oder "beide"
+min_flaeche  = 0.01       # Auto-Grösse: filtert Fussgänger, Katzen, Laub (bei Bedarf anpassen)
+max_kmh      = 120.0      # darüber = Messfehler (z. B. Scheinwerfer, Lichtwechsel)
+
+[kamera]
+typ        = "aus"        # "aus" = Zählmodus ohne Bilder | "edsdk" = Testlauf mit EOS | "dummy" = Test ohne Kamera
+edsdk_dll  = "C:/EDSDK/EDSDK_64/Dll/EDSDK.dll"
+autofokus  = false        # false = schneller (manuell vorfokussieren!), true = AF vor Auslösung
+serie_ms   = 400          # kurze Serie (Reihenaufnahme an der Kamera einschalten)
+cooldown_s = 2.0          # Mindestabstand zwischen zwei Auslösungen
+
+[ausgabe]
+fenster    = true         # Livebild mit Overlay anzeigen
+ordner     = "messungen"  # CSV-Log + Tapo-Schnappschuss pro Auslösung
+
+[auswertung]
+limit_kmh    = 30.0       # signalisierte Höchstgeschwindigkeit
+toleranz_kmh = 3.0        # Messunsicherheit: "zu schnell" erst ab limit + toleranz

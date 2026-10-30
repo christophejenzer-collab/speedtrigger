@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SpeedTrigger – Verkehrszählung mit Tapo und Canon EOS</title>
+<meta name="description" content="Wie viele fahren zu schnell? Verkehrszählung mit Geschwindigkeitsmessung aus dem Livebild einer Tapo-Kamera, Auswertung mit V85 und Anteil über Limit.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --asphalt:#3b4045; --asphalt-2:#33373b; --marking:#f4f4ef; --signal:#d52b1e;
+  --gelb:#f2c200; --papier:#f6f7f4; --tinte:#1f2326; --grau:#5d646b; --linie:#d9dcd6;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--papier);color:var(--tinte);font:400 17px/1.6 "Barlow",system-ui,sans-serif}
+a{color:inherit;text-decoration-thickness:2px;text-underline-offset:3px;text-decoration-color:var(--signal)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--gelb);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:"Barlow Condensed","Barlow",sans-serif;font-weight:700;line-height:1.05;margin:0}
+h2{font-size:clamp(30px,4vw,40px);margin-bottom:18px}
+h3{font-size:22px;font-weight:600;margin-bottom:6px}
+p{margin:0 0 14px;max-width:64ch}
+
+/* Hero: die Messstrecke von oben */
+.hero{background:var(--asphalt);color:var(--marking);padding:48px 0 0;overflow:hidden}
+.hero-kopf{display:flex;gap:28px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.hero h1{font-size:clamp(46px,8vw,92px);letter-spacing:-.01em;max-width:11ch}
+.hero .lead{font-size:19px;color:#d3d6d2;margin-top:18px;max-width:46ch}
+.schild{flex:none;width:118px;height:118px;border-radius:50%;background:#fff;border:13px solid var(--signal);
+  display:grid;place-items:center;font:700 54px/1 "Barlow Condensed",sans-serif;color:#111;letter-spacing:-.02em}
+.aktionen{display:flex;gap:14px;flex-wrap:wrap;margin:28px 0 40px}
+.btn{display:inline-block;padding:12px 20px;font-weight:600;text-decoration:none;border:2px solid var(--marking);border-radius:4px}
+.btn.voll{background:var(--marking);color:var(--asphalt)}
+.strasse{display:block;width:100%;height:auto}
+.anzeige{font:600 15px/1 "Barlow",sans-serif;fill:var(--marking)}
+.anzeige-gross{font:700 34px/1 "Barlow Condensed",sans-serif;fill:var(--gelb)}
+
+/* Inhalt */
+section{padding:72px 0;border-bottom:1px solid var(--linie)}
+.schritte{list-style:none;margin:28px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:28px 32px;counter-reset:s}
+.schritte li{counter-increment:s;border-top:4px solid var(--tinte);padding-top:14px}
+.schritte li::before{content:counter(s);display:block;font:700 40px/1 "Barlow Condensed",sans-serif;color:var(--signal);margin-bottom:8px}
+.schritte p{font-size:16px;color:var(--grau)}
+.zwei{display:grid;grid-template-columns:1fr 1fr;gap:48px}
+.modi{width:100%;border-collapse:collapse;margin-top:8px;font-size:16px}
+.modi th,.modi td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--linie);vertical-align:top}
+.modi th{font-weight:600;color:var(--grau)}
+code{font:500 14px/1.4 ui-monospace,Consolas,monospace;background:#e8eae5;padding:2px 6px;border-radius:3px}
+pre{background:var(--asphalt-2);color:var(--marking);padding:18px 20px;border-radius:6px;overflow-x:auto;font:14px/1.6 ui-monospace,Consolas,monospace;margin:14px 0 0}
+pre code{background:none;padding:0;color:inherit}
+.kennzahlen{display:flex;flex-wrap:wrap;gap:36px;margin:24px 0 28px}
+.kennzahlen div{min-width:130px}
+.kennzahlen strong{display:block;font:700 48px/1 "Barlow Condensed",sans-serif}
+.kennzahlen .rot{color:var(--signal)}
+.kennzahlen span{color:var(--grau);font-size:15px}
+.liste{padding-left:20px;margin:0}
+.liste li{margin-bottom:10px;max-width:60ch}
+.hinweis{border-left:6px solid var(--gelb);padding:4px 0 4px 18px;margin-top:24px}
+footer{padding:36px 0 48px;color:var(--grau);font-size:14px}
+footer p{max-width:none}
+
+@media (max-width:760px){
+  .zwei{grid-template-columns:1fr;gap:36px}
+  .schild{width:86px;height:86px;border-width:10px;font-size:38px}
+  section{padding:56px 0}
+}
+@media (prefers-reduced-motion:reduce){ .auto,.uhr{animation:none!important} }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-kopf">
+      <div>
+        <h1>Wie viele fahren zu schnell?</h1>
+        <p class="lead">SpeedTrigger zählt den Verkehr mit einer handelsüblichen Tapo-Kamera, misst jede Durchfahrt und zeigt, welcher Anteil über dem Limit liegt. Ohne Fotos von Fahrzeugen.</p>
+      </div>
+      <div class="schild" role="img" aria-label="Höchstgeschwindigkeit 30">30</div>
+    </div>
+    <div class="aktionen">
+      <a class="btn voll" href="https://github.com/christophejenzer-collab/speedtrigger">Code auf GitHub</a>
+      <a class="btn" href="beispielbericht.html">Beispielbericht ansehen</a>
+    </div>
+  </div>
+
+  <!-- Messstrecke von oben: Auto fährt durch Linie A und B, Messung erscheint -->
+  <svg class="strasse" viewBox="0 0 1200 230" role="img" aria-label="Strasse von oben mit Messlinie A und B im Abstand von 15 Metern; ein Auto passiert beide Linien und wird mit 38 km/h gemessen.">
+    <rect width="1200" height="230" fill="var(--asphalt-2)"/>
+    <rect y="40" width="1200" height="150" fill="#2e3236"/>
+    <line x1="0" y1="44" x2="1200" y2="44" stroke="var(--marking)" stroke-width="4"/>
+    <line x1="0" y1="186" x2="1200" y2="186" stroke="var(--marking)" stroke-width="4"/>
+    <line x1="0" y1="115" x2="1200" y2="115" stroke="var(--marking)" stroke-width="4" stroke-dasharray="40 30" opacity=".75"/>
+    <line x1="380" y1="30" x2="380" y2="200" stroke="var(--gelb)" stroke-width="5"/>
+    <line x1="780" y1="30" x2="780" y2="200" stroke="var(--gelb)" stroke-width="5"/>
+    <text x="380" y="22" text-anchor="middle" class="anzeige">A</text>
+    <text x="780" y="22" text-anchor="middle" class="anzeige">B</text>
+    <line x1="392" y1="214" x2="768" y2="214" stroke="var(--marking)" stroke-width="1.5" opacity=".6"/>
+    <text x="580" y="226" text-anchor="middle" class="anzeige" style="font-size:12px;opacity:.8">15 m</text>
+    <g class="auto">
+      <rect x="-150" y="132" width="110" height="46" rx="12" fill="var(--marking)"/>
+      <rect x="-82" y="138" width="26" height="34" rx="5" fill="#9aa3aa"/>
+      <rect x="-138" y="139" width="20" height="32" rx="5" fill="#9aa3aa"/>
+    </g>
+    <g class="uhr">
+      <text x="1050" y="104" text-anchor="middle" class="anzeige-gross">38 km/h</text>
+      <text x="1050" y="128" text-anchor="middle" class="anzeige" style="font-size:13px">1,42 s für 15 m</text>
+    </g>
+  </svg>
+</header>
+
+<style>
+.auto{animation:fahrt 6s cubic-bezier(.3,0,.7,1) 0.6s infinite}
+.uhr{opacity:0;animation:zeigen 6s linear 0.6s infinite}
+@keyframes fahrt{0%{transform:translateX(0)}70%,100%{transform:translateX(1400px)}}
+@keyframes zeigen{0%,38%{opacity:0}42%,88%{opacity:1}96%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.auto{transform:translateX(520px)}.uhr{opacity:1}}
+</style>
+
+<main>
+  <section>
+    <div class="wrap">
+      <h2>So wird gemessen</h2>
+      <p>Das Prinzip ist eine Lichtschranke im Kamerabild: Zwei Linien mit bekannter Distanz, dazwischen wird die Zeit gestoppt.</p>
+      <ol class="schritte">
+        <li><h3>Linien setzen</h3><p>Im Tapo-Bild zwei Linien quer zur Fahrbahn anklicken und den realen Abstand vor Ort messen, idealerweise 15 bis 20 Meter.</p></li>
+        <li><h3>Fahrzeuge erkennen</h3><p>Bewegte Objekte werden vom Hintergrund getrennt und über mehrere Bilder verfolgt. Kleine Objekte wie Fussgänger oder Laub fallen heraus.</p></li>
+        <li><h3>Zeit stoppen</h3><p>Der Moment der Überquerung wird zwischen zwei Bildern interpoliert. Das gleicht die tiefe Bildrate der Kamera aus.</p></li>
+        <li><h3>Auswerten</h3><p>Jede Messung landet mit Zeit, Geschwindigkeit und Richtung in einer CSV-Datei. Ein Befehl erzeugt daraus den Bericht.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Was der Bericht zeigt</h2>
+      <p>Ausschnitt aus dem Beispielbericht, erzeugt mit simulierten Daten einer Woche bei Tempo 30.</p>
+      <div class="kennzahlen">
+        <div><strong>1789</strong><span>Fahrzeuge in 7 Tagen</span></div>
+        <div><strong class="rot">16,5 %</strong><span>zu schnell, über 33 km/h</span></div>
+        <div><strong>33,2</strong><span>V85 in km/h</span></div>
+      </div>
+      <p>V85 ist die Geschwindigkeit, die 85 Prozent der Fahrzeuge nicht überschreiten. Mit dieser Kennzahl arbeiten Verkehrsplaner. Dazu kommen die Verteilung nach Geschwindigkeit, der Tagesverlauf und die Werte je Fahrtrichtung.</p>
+      <a class="btn" style="border-color:var(--tinte)" href="beispielbericht.html">Ganzen Beispielbericht öffnen</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap zwei">
+      <div>
+        <h2>Zwei Betriebsarten</h2>
+        <table class="modi">
+          <tr><th>Zählmodus</th><td>Erfasst jede Durchfahrt mit Geschwindigkeit und Richtung. Es werden keine Bilder gespeichert.</td></tr>
+          <tr><th>Testlauf</th><td>Löst zusätzlich eine Canon EOS per USB aus, sobald ein Fahrzeug die Schwelle überschreitet. Gedacht für eigene Kontrollfahrten, um die Messung zu prüfen.</td></tr>
+        </table>
+      </div>
+      <div>
+        <h2>Was du brauchst</h2>
+        <ul class="liste">
+          <li>Tapo-Kamera mit RTSP, zum Beispiel C200 oder C310, und ein eingerichtetes Kamerakonto</li>
+          <li>Windows-PC im selben Netz mit Python 3.11 oder neuer</li>
+          <li>Für den Testlauf: Canon EOS mit EDSDK-Unterstützung, etwa EOS R oder EOS 500D, und das kostenlose Canon EDSDK</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Loslegen</h2>
+      <pre><code>git clone https://github.com/christophejenzer-collab/speedtrigger
+cd speedtrigger
+pip install -r requirements.txt
+
+$env:TAPO_USER="..."; $env:TAPO_PASS="..."
+python kalibrieren.py      # Linie A und B setzen
+python speedtrigger.py     # Zählung starten
+python auswertung.py       # Bericht erzeugen</code></pre>
+      <p style="margin-top:16px">Die vollständige Anleitung steht im <a href="https://github.com/christophejenzer-collab/speedtrigger#readme">README</a>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap zwei">
+      <div>
+        <h2>Grenzen</h2>
+        <ul class="liste">
+          <li>Kein geeichtes Messgerät. Die Werte sind Richtwerte und taugen nicht für Bussen oder Anzeigen.</li>
+          <li>Vor dem Einsatz mit Kontrollfahrten prüfen, die Geschwindigkeit dabei per GPS-App ablesen.</li>
+          <li>Nachts können Scheinwerfer und die Infrarot-Umschaltung der Kamera Fehlmessungen auslösen.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Datenschutz</h2>
+        <p>Im Zählmodus speichert SpeedTrigger nur Zeit, Geschwindigkeit und Richtung. Kontrollschilder und Personen werden weder erkannt noch abgelegt.</p>
+        <p class="hinweis">Wer Fahrzeuge oder Personen im öffentlichen Raum fotografiert, bearbeitet Personendaten und ist selbst für die Rechtmässigkeit verantwortlich.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Privates Open-Source-Projekt von Christophe Jenzer, MIT-Lizenz. Canon, EOS und EDSDK sind Marken der Canon Inc., Tapo ist eine Marke von TP-Link. Keine Verbindung zu oder Unterstützung durch diese Unternehmen.</p>
+  </div>
+</footer>
+</body>
+</html>

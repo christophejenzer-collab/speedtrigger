@@ -1,0 +1,21 @@
+# Messdaten und Bilder nie hochladen
+messungen/
+testlauf/
+*.jpg
+*.png
+*.mp4
+log.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Canon EDSDK nicht weitergeben
+EDSDK*/
+*.dll
+
+# Lokale Konfiguration mit echten Werten (optional verwenden)
+config.local.toml
+.env
