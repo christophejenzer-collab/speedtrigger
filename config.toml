@@ -14,7 +14,8 @@ linie_b      = [[0.70, 0.20], [0.70, 0.90]]
 distanz_m    = 15.0       # reale Distanz A–B auf der Strasse (vor Ort ausmessen!), 15–20 m ideal
 schwelle_kmh = 33.0       # 30 km/h + ~3 km/h Messtoleranz gegen Fehlauslösungen
 richtung     = "beide"    # "a_nach_b", "b_nach_a" oder "beide"
-min_flaeche  = 0.01       # Auto-Grösse: filtert Fussgänger, Katzen, Laub (bei Bedarf anpassen)
+min_flaeche  = 0.003      # min. Objektgrösse (Anteil Bildfläche); klein genug für Autos weit hinten im Bild
+max_luecke_s = 2.5        # so lange darf ein Auto verdeckt sein (Garage, Busch) und wird wiedererkannt
 max_kmh      = 120.0      # darüber = Messfehler (z. B. Scheinwerfer, Lichtwechsel)
 
 [kamera]

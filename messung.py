@@ -11,7 +11,6 @@ import cv2
 import numpy as np
 
 ARBEITSBREITE = 640  # intern herunterskaliert -> schneller, robuster
-MAX_LUECKE_S = 1.5   # so lange darf ein Fahrzeug verdeckt sein (Busch, Baum) und wird trotzdem wiedererkannt
 
 
 def _seite(linie, p):
@@ -56,6 +55,8 @@ class Messung:
         self.naechste_id = 1
         self.groesse = None
         self.la = self.lb = None
+        # so lange darf ein Fahrzeug verdeckt sein (Garage, Busch) und wird trotzdem wiedererkannt
+        self.max_luecke = cfg.get("max_luecke_s", 1.5)
 
     def _init(self, h, w):
         self.groesse = (w, h)
@@ -94,7 +95,7 @@ class Messung:
             for sid in frei:
                 s = self.spuren[sid]
                 luecke = t - s.t
-                if luecke > MAX_LUECKE_S:
+                if luecke > self.max_luecke:
                     continue
                 vor = (s.p[0] + s.vx * luecke, s.p[1] + s.vy * luecke)
                 tor = 0.12 * w + 0.5 * math.hypot(s.vx, s.vy) * luecke
@@ -113,7 +114,7 @@ class Messung:
             if e:
                 ereignisse.append(e)
 
-        for sid in [i for i, s in self.spuren.items() if t - s.zuletzt > MAX_LUECKE_S + 0.5]:
+        for sid in [i for i, s in self.spuren.items() if t - s.zuletzt > self.max_luecke + 0.5]:
             del self.spuren[sid]
         self._skala = 1 / f
         return ereignisse
