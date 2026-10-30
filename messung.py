@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 
 ARBEITSBREITE = 640  # intern herunterskaliert -> schneller, robuster
+MAX_LUECKE_S = 1.5   # so lange darf ein Fahrzeug verdeckt sein (Busch, Baum) und wird trotzdem wiedererkannt
 
 
 def _seite(linie, p):
@@ -41,6 +42,8 @@ class Spur:
     richtung: str = None
     ausgeloest: bool = False
     box: tuple = None
+    vx: float = 0.0  # Geschwindigkeit im Bild (px/s) für Vorhersage bei Verdeckung
+    vy: float = 0.0
     verlauf: list = field(default_factory=list)
 
 
@@ -83,13 +86,20 @@ class Messung:
             objekte.append(((x + bw / 2, y + bh / 2), (x, y, bw, bh)))
 
         ereignisse = []
-        max_sprung = 0.25 * w
         frei = set(self.spuren)
         for p, box in sorted(objekte, key=lambda o: -o[1][2] * o[1][3]):
-            beste, dist = None, max_sprung
+            # Zuordnung zur vorhergesagten Position: so wird ein Auto nach einer Verdeckung
+            # (z. B. hinter einem Busch) als dasselbe Fahrzeug erkannt.
+            beste, dist = None, None
             for sid in frei:
-                d = math.dist(self.spuren[sid].p, p)
-                if d < dist:
+                s = self.spuren[sid]
+                luecke = t - s.t
+                if luecke > MAX_LUECKE_S:
+                    continue
+                vor = (s.p[0] + s.vx * luecke, s.p[1] + s.vy * luecke)
+                tor = 0.12 * w + 0.5 * math.hypot(s.vx, s.vy) * luecke
+                d = math.dist(vor, p)
+                if d < tor and (dist is None or d < dist):
                     beste, dist = sid, d
             if beste is None:
                 s = Spur(self.naechste_id, t, p, zuletzt=t, box=box)
@@ -103,7 +113,7 @@ class Messung:
             if e:
                 ereignisse.append(e)
 
-        for sid in [i for i, s in self.spuren.items() if t - s.zuletzt > 2.0]:
+        for sid in [i for i, s in self.spuren.items() if t - s.zuletzt > MAX_LUECKE_S + 0.5]:
             del self.spuren[sid]
         self._skala = 1 / f
         return ereignisse
@@ -125,6 +135,12 @@ class Messung:
             s.t_a = ta
         if tb is not None and s.t_b is None:
             s.t_b = tb
+        dt = t - s.t
+        if dt > 0:
+            vx, vy = (p[0] - s.p[0]) / dt, (p[1] - s.p[1]) / dt
+            erst = s.vx == 0 and s.vy == 0
+            s.vx = vx if erst else 0.5 * s.vx + 0.5 * vx
+            s.vy = vy if erst else 0.5 * s.vy + 0.5 * vy
         s.verlauf.append(p)
         s.verlauf = s.verlauf[-30:]
         s.t, s.p, s.zuletzt = t, p, t
