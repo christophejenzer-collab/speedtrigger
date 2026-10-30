@@ -1,6 +1,7 @@
 """Messlinien per Mausklick setzen: 4 Klicks = A-Start, A-Ende, B-Start, B-Ende.
 r = zurücksetzen, s = speichern in config.toml, q = abbrechen.
 """
+import os
 import re
 import sys
 import time
@@ -10,7 +11,7 @@ import cv2
 
 from quelle import DateiQuelle, RtspQuelle, rtsp_url
 
-CFG = "config.toml"
+CFG = "config.local.toml" if os.path.exists("config.local.toml") else "config.toml"
 
 
 def main():

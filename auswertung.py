@@ -34,7 +34,7 @@ def kennzahlen(werte, limit, grenze):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--config", default="config.local.toml" if os.path.exists("config.local.toml") else "config.toml")
     ap.add_argument("--von", help="z. B. 2026-11-02 oder '2026-11-02 06:00'")
     ap.add_argument("--bis", help="exklusiv, z. B. 2026-11-09")
     args = ap.parse_args()

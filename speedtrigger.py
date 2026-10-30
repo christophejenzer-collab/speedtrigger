@@ -19,7 +19,7 @@ from quelle import DateiQuelle, RtspQuelle, rtsp_url
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default="config.toml")
+    ap.add_argument("--config", default="config.local.toml" if os.path.exists("config.local.toml") else "config.toml")
     ap.add_argument("--quelle", help="Videodatei statt Tapo-Livebild (zum Testen)")
     ap.add_argument("--ohne-fenster", action="store_true")
     args = ap.parse_args()

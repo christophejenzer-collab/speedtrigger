@@ -32,7 +32,10 @@ Testläufe mit eigenem Ordner (`[ausgabe] ordner = "testlauf"`), damit sie die S
 $env:TAPO_USER="..."; $env:TAPO_PASS="..."   # Kamerakonto der Tapo
 python kalibrieren.py                        # Linie A und B anklicken, mit s speichern
 ```
-Danach in `config.toml` die IP der Tapo und die real gemessene Distanz `distanz_m` eintragen.
+Eigene Werte (IP der Tapo, gemessene Distanz `distanz_m`) gehören in eine Kopie `config.local.toml`. Sie wird automatisch verwendet, falls vorhanden, und von Git ignoriert:
+```powershell
+copy config.toml config.local.toml
+```
 
 ```powershell
 python speedtrigger.py                       # Zählung starten (q = beenden)
